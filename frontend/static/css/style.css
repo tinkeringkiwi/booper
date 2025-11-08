@@ -246,7 +246,7 @@ body {
 }
 
 /* Mobile: make the large background title constrained so it doesn't overflow */
-@media (max-width: 600px) {
+@media (max-width: 864px) {
     .background-title {
         width: 80%;
         left: 50%;
