@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: booper
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booper-deployment
+  namespace: booper
+  labels:
+    app: booper
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: booper
+  template:
+    metadata:
+      labels:
+        app: booper
+    spec:
+      containers:
+        - name: booper
+          image: ghcr.io/tinkeringkiwi/booper:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booper-svc
+  namespace: booper
+  labels:
+    app: booper
+spec:
+  type: ClusterIP
+  selector:
+    app: booper
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: booper-ingress
+  namespace: booper
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+    - host: booper.example.com
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: booper-svc
+                port:
+                  number: 80
