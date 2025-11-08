@@ -2,38 +2,66 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: booper
-
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: booper-deployment
+  name: booper
   namespace: booper
   labels:
     app: booper
 spec:
-  replicas: 2
+  serviceName: booper-headless
+  replicas: 1
   selector:
     matchLabels:
       app: booper
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # partition: 0 ensures rolling update behavior; with replicas=1 this will
+      # cause the single pod to be updated in place. For zero-downtime switchover
+      # you'd run multiple replicas and implement leader/readiness gating in the
+      # app so only the leader becomes Ready and receives traffic.
+      partition: 0
   template:
     metadata:
       labels:
         app: booper
     spec:
+      terminationGracePeriodSeconds: 30
       containers:
         - name: booper
           image: ghcr.io/tinkeringkiwi/booper:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          # Readiness probe keeps the pod out of service until the app reports ready.
+          # The application SHOULD expose a /ready HTTP endpoint that returns 200
+          # when the process is ready to accept traffic (leader if running with >1
+          # replica). If the app does not implement this, remove or adjust the probe.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+            failureThreshold: 2
           resources:
             requests:
               cpu: "100m"
               memory: "128Mi"
             limits:
-              cpu: "500m"
-              memory: "256Mi"
+              cpu: "1000m"
+              memory: "512Mi"
 
 ---
 apiVersion: v1
@@ -51,25 +79,35 @@ spec:
     - port: 80
       targetPort: 8080
       protocol: TCP
-
+      name: http
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: booper-ingress
   namespace: booper
+  labels:
+    app: booper
   annotations:
-    kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    # Redirect HTTP->HTTPS once TLS is provisioned by cert-manager
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Request TLS cert from cert-manager using cluster-scoped Issuer 'letsencrypt-prod'
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - booper.tinkering.kiwi
+      # cert-manager will create this secret when the Certificate is issued
+      secretName: booper-tinkering-kiwi-tls
   rules:
-    - host: booper.example.com
+    - host: booper.tinkering.kiwi
       http:
         paths:
-          - path: /(.*)
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: booper-svc
                 port:
-                  number: 80
+                  name: http

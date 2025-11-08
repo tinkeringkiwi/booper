@@ -1,5 +1,6 @@
+:root{ --vh: 1vh; }
 body{margin:0;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:#111;color:#eee}
-#game-world{position:relative;width:100vw;height:100vh;background-color:#222;overflow:hidden}
+#game-world{position:relative;width:100vw;height:calc(var(--vh, 1vh) * 100);background-color:#222;overflow:hidden}
 .avatar{position:absolute;width:80px;height:80px;border-radius:50%;cursor:pointer;transition:box-shadow .3s ease, transform .06s linear;user-select:none;z-index:10}
 .avatar.glowing{box-shadow:0 0 15px 5px #00ffff;animation:glowPulse 2.4s ease-in-out infinite}
 @keyframes glowPulse{0%{box-shadow:0 0 10px 3px rgba(0,255,255,.7)}50%{box-shadow:0 0 22px 9px rgba(0,255,255,.95)}100%{box-shadow:0 0 10px 3px rgba(0,255,255,.7)}}

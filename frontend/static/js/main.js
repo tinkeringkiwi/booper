@@ -1,6 +1,20 @@
 // main.js - UI, game loop, and message handlers (classic script, uses global window.network)
 
 (() => {
+  // Fix for mobile browsers where 100vh can be larger than the visible
+  // viewport (causing bottom content to be clipped by the address bar/home
+  // indicator). We set a CSS variable `--vh` to 1% of the innerHeight and use
+  // that in CSS (see `#game-world` height). Update on resize/orientation.
+  function setVh() {
+    try {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    } catch (e) { /* noop */ }
+  }
+  // Initialize now and update on common events
+  setVh();
+  window.addEventListener('resize', setVh, { passive: true });
+  window.addEventListener('orientationchange', setVh);
   const AVATAR_SIZE = 80;
   const SPEED = 2; // pixels per tick (frame). Tune as desired.
 
